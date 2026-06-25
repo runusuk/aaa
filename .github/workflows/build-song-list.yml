@@ -1,0 +1,56 @@
+name: Build song list
+
+# リポジトリにある音声ファイル（名前は何でも・何曲でも）を自動でリスト化して
+# songs.json を生成・コミットします。ゲームはこの songs.json を読んで再生します。
+
+on:
+  push:
+    branches: ["claude/awesome-heisenberg-bh43qi"]
+    paths:
+      - "**.mp3"
+      - "**.m4a"
+      - "**.ogg"
+      - "**.oga"
+      - "**.wav"
+      - "**.aac"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  manifest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Generate songs.json
+        run: |
+          python3 - << 'EOF'
+          import json, os
+          exts = ('.mp3', '.m4a', '.ogg', '.oga', '.wav', '.aac')
+          files = []
+          for root, dirs, names in os.walk('.'):
+              dirs[:] = [d for d in dirs if d not in ('.git', '.github')]
+              for n in names:
+                  if n.lower().endswith(exts):
+                      p = os.path.join(root, n)
+                      files.append(os.path.relpath(p, '.').replace(os.sep, '/'))
+          files.sort()
+          with open('songs.json', 'w', encoding='utf-8') as f:
+              json.dump(files, f, ensure_ascii=False, indent=2)
+          print('songs:', files)
+          EOF
+
+      - name: Commit if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add songs.json
+          if git diff --staged --quiet; then
+            echo "songs.json unchanged"
+          else
+            git commit -m "Update song list"
+            git push
+          fi
