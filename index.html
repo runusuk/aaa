@@ -86,7 +86,15 @@ import { PoseLandmarker, FilesetResolver }
 const SONGS_MANIFEST = "songs.json";  // Actionsが自動生成する曲リスト
 const LEGACY_SRC = "music.mp3";       // 1曲だけ root に置いた場合のフォールバック
 const SONG_EXTS = /\.(mp3|m4a|ogg|oga|wav|aac)$/i;
-const ANIMALS = ["🐶","🐱","🐰","🐻","🦊","🐼","🐸","🐵","🦁","🐯","🐮","🐷","🐔","🐧","🐨","🐹"];
+// かわいい動物イラスト（OpenMoji, CC BY-SA 4.0）。読み込めない時は絵文字で表示
+const ANIMALS = [
+  {emoji:"🐶", img:"dog"},   {emoji:"🐱", img:"cat"},    {emoji:"🐰", img:"rabbit"}, {emoji:"🐻", img:"bear"},
+  {emoji:"🦊", img:"fox"},   {emoji:"🐼", img:"panda"},  {emoji:"🐸", img:"frog"},   {emoji:"🐵", img:"monkey"},
+  {emoji:"🦁", img:"lion"},  {emoji:"🐯", img:"tiger"},  {emoji:"🐮", img:"cow"},    {emoji:"🐷", img:"pig"},
+  {emoji:"🐤", img:"chick"}, {emoji:"🐧", img:"penguin"},{emoji:"🐨", img:"koala"},  {emoji:"🐹", img:"hamster"},
+];
+const animalImgs = {};
+for (const a of ANIMALS) { const im = new Image(); im.src = "animals/" + a.img + ".png"; animalImgs[a.img] = im; }
 const CHEERS  = ["やったね！","すごい！","じょうず！","ナイス！","かわいい！","のりのり！","じょうずに おどれてる！"];
 const FALLBACK_BPM = 100;             // 内蔵サウンド時のテンポ
 const MAX_ANIMALS = 3;
@@ -261,8 +269,9 @@ function spawnAt(ox, oy) {
   const m = r + 16;
   x = Math.max(m, Math.min(W - m, x));
   y = Math.max(m + 40, Math.min(H - m, y));
+  const pa = ANIMALS[(Math.random()*ANIMALS.length)|0];
   animals.push({
-    x, y, r, emoji: ANIMALS[(Math.random()*ANIMALS.length)|0],
+    x, y, r, emoji: pa.emoji, img: pa.img,
     born: performance.now()/1000, bobPhase: Math.random()*Math.PI*2,
     scale: 0, popped: false, popT: 0, faded: false,
   });
@@ -415,8 +424,15 @@ function render(now) {
     ctx.fillStyle = "rgba(255,255,255,0.85)";
     ctx.shadowColor = "rgba(0,0,0,0.35)"; ctx.shadowBlur = 18; ctx.shadowOffsetY = 6; ctx.fill();
     ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
-    ctx.font = `${a.r*1.8*s*beatScale}px serif`; ctx.textAlign="center"; ctx.textBaseline="middle";
-    ctx.fillText(a.emoji, a.x, a.y+bob); ctx.restore();
+    const im = animalImgs[a.img];
+    const sz = a.r * 1.95 * s * beatScale;
+    if (im && im.complete && im.naturalWidth) {
+      ctx.drawImage(im, a.x - sz/2, a.y + bob - sz/2, sz, sz);
+    } else {
+      ctx.font = `${a.r*1.8*s*beatScale}px serif`; ctx.textAlign="center"; ctx.textBaseline="middle";
+      ctx.fillText(a.emoji, a.x, a.y+bob);
+    }
+    ctx.restore();
   }
 
   for (const p of particles) {

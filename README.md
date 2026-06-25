@@ -81,4 +81,9 @@ python3 -m http.server 8000
 - 曲リスト `songs.json` は GitHub Actions（`.github/workflows/build-song-list.yml`）が自動生成します。
 - 動物・効果音・応援メッセージ・振り付け（`DANCE`）はコード上部の定数を変えれば簡単にカスタマイズできます。
 
+## クレジット（素材の権利表示）
+
+- 動物のイラストは **OpenMoji**（https://openmoji.org/）を使用しています。ライセンス: **CC BY-SA 4.0**。
+  改変（サイズ調整など）して `animals/` に同梱しています。
+
 たのしんでね！🎵
