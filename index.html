@@ -17,7 +17,17 @@
     text-align: center; color: #fff; gap: 26px; padding: 24px;
   }
   #start h1 { font-size: clamp(30px, 8vw, 72px); text-shadow: 0 4px 0 #00000044; letter-spacing: 2px; }
-  #start .emojis { font-size: clamp(40px, 12vw, 110px); line-height: 1; filter: drop-shadow(0 6px 10px #0008); }
+  #start .emojis { display: flex; gap: clamp(6px, 2.2vw, 20px); justify-content: center; align-items: flex-end; }
+  #start .emojis img {
+    width: clamp(54px, 15vw, 120px); height: auto;
+    filter: drop-shadow(0 6px 10px #0008);
+    animation: bob 1.4s ease-in-out infinite;
+  }
+  #start .emojis img:nth-child(2) { animation-delay: .15s; }
+  #start .emojis img:nth-child(3) { animation-delay: .30s; }
+  #start .emojis img:nth-child(4) { animation-delay: .45s; }
+  #start .emojis img:nth-child(5) { animation-delay: .60s; }
+  @keyframes bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-14px); } }
   #start p { font-size: clamp(15px, 3.4vw, 23px); opacity: .92; line-height: 1.7; }
   #startBtn {
     font: inherit; font-size: clamp(24px, 6vw, 44px); font-weight: bold; color: #5a2b00;
@@ -69,7 +79,13 @@
 <div id="cheer"></div>
 
 <div id="start">
-  <div class="emojis">🐶 💃 🐰 🕺 🐱</div>
+  <div class="emojis">
+    <img src="animals/dog.png" alt="">
+    <img src="animals/rabbit.png" alt="">
+    <img src="animals/cat.png" alt="">
+    <img src="animals/bear.png" alt="">
+    <img src="animals/fox.png" alt="">
+  </div>
   <h1>どうぶつダンス♪</h1>
   <p>おんがくに あわせて でてくる どうぶつさんを<br>てを のばして タッチ！ おどるように うごこう！</p>
   <button id="startBtn">▶ はじめる</button>
