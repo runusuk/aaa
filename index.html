@@ -149,6 +149,9 @@ let audio, master, analyser, freqData, musicEl = null;
 let musicMode = false;
 let energyAvg = 0, lastBeat = 0;
 let songList = [], songIndex = 0;
+let beatMaps = {};      // ファイル名 -> {bpm, offset}（事前解析の結果）
+let sched = null;       // 現在の曲の拍スケジュール（無ければ検出モード）
+let beatCount = 0;      // 拍カウンタ（出現の間引き判定）
 
 function initAudioGraph() {
   audio = new (window.AudioContext || window.webkitAudioContext)();
@@ -184,8 +187,17 @@ async function loadPlaylist() {
 async function playSong(i) {
   if (!songList.length) return;
   songIndex = ((i % songList.length) + songList.length) % songList.length;
-  energyAvg = 0; lastBeat = audio.currentTime;
-  musicEl.src = encodeURI(songList[songIndex]);
+  const name = songList[songIndex];
+  const bm = beatMaps[name];
+  if (bm && bm.bpm) {
+    const period = 60 / bm.bpm;
+    const spawnEvery = Math.max(1, Math.round(0.72 / period));  // 出現間隔を約0.7秒に
+    sched = { period, offset: bm.offset || 0, spawnEvery, nextIndex: 0 };
+  } else {
+    sched = null;   // 解析データが無ければリアルタイム検出
+  }
+  beatCount = 0; danceStep = 0; energyAvg = 0; lastBeat = audio.currentTime;
+  musicEl.src = encodeURI(name);
   try { await musicEl.play(); } catch (e) {}
 }
 function advanceSong(d) { playSong(songIndex + d); }
@@ -225,14 +237,21 @@ function playHitSound() {
 }
 
 /* ============================ ビート → 振り付け ============================ */
-function onBeat() {
-  beatPulse = 1; ring = 1;
+function pulseBeat() { beatPulse = 1; ring = 1; }
+function spawnMove() {
   const move = DANCE[danceStep % DANCE.length];
   danceStep++;
   for (const off of move) {
     if (animals.length >= MAX_ANIMALS) break;
     spawnAt(off[0], off[1]);
   }
+}
+// 1拍ごとに呼ぶ。脈動は毎拍、動物の出現は spawnEvery 拍ごと（速い曲は間引く）
+function fireBeat() {
+  pulseBeat();
+  const every = sched ? sched.spawnEvery : 1;
+  if (beatCount % every === 0) spawnMove();
+  beatCount++;
 }
 
 function spawnAt(ox, oy) {
@@ -413,7 +432,7 @@ function detectMusicBeat(now) {
   analyser.getByteFrequencyData(freqData);
   let e = 0; for (let i = 1; i <= 6; i++) e += freqData[i]; e /= 6;   // 低音（キック）帯
   energyAvg = energyAvg * 0.92 + e * 0.08;
-  if (e > energyAvg * 1.32 && e > 38 && now - lastBeat > 0.26) { lastBeat = now; onBeat(); }
+  if (e > energyAvg * 1.32 && e > 38 && now - lastBeat > 0.26) { lastBeat = now; fireBeat(); }
 }
 
 /* ============================ ループ ============================ */
@@ -431,9 +450,20 @@ function loop() {
 
   // ビート
   if (musicMode) {
-    detectMusicBeat(audio.currentTime);
+    if (sched) {
+      // 事前解析した拍グリッドに正確に合わせる（offset + n*period）
+      const tt = musicEl.currentTime;
+      let guard = 0;
+      while (sched.offset + sched.nextIndex * sched.period <= tt && guard < 8) {
+        fireBeat(); sched.nextIndex++; guard++;
+      }
+      const expected = (tt - sched.offset) / sched.period;   // シーク等で飛んだら追従
+      if (expected - sched.nextIndex > 4) sched.nextIndex = Math.floor(expected);
+    } else {
+      detectMusicBeat(audio.currentTime);
+    }
   } else {
-    if (audio.currentTime - lastBeat >= BEAT) { lastBeat = audio.currentTime; synthOnBeat(); onBeat(); }
+    if (audio.currentTime - lastBeat >= BEAT) { lastBeat = audio.currentTime; synthOnBeat(); fireBeat(); }
   }
 
   update(dt, tow);
@@ -450,6 +480,10 @@ async function start() {
     if (audio.state === "suspended") await audio.resume();
 
     loadingEl.textContent = "おんがくを よみこみちゅう… 🎵";
+    try {
+      const r = await fetch("beatmaps.json?v=" + Date.now(), { cache: "no-store" });
+      if (r.ok) beatMaps = await r.json();
+    } catch (e) {}
     songList = await loadPlaylist();
     if (songList.length) {
       musicEl = new Audio();

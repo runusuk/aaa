@@ -43,14 +43,19 @@ jobs:
           print('songs:', files)
           EOF
 
+      - name: Analyze tempo (BPM + offset) -> beatmaps.json
+        run: |
+          python3 -m pip install --quiet --disable-pip-version-check numpy scipy miniaudio
+          python3 tools/analyze.py .
+
       - name: Commit if changed
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add songs.json
+          git add songs.json beatmaps.json
           if git diff --staged --quiet; then
-            echo "songs.json unchanged"
+            echo "nothing changed"
           else
-            git commit -m "Update song list"
+            git commit -m "Update song list and beatmaps"
             git push
           fi
