@@ -3,23 +3,22 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-<title>どうぶつタッチ♪ リズムゲーム</title>
+<title>どうぶつダンス♪ リズムゲーム</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; -webkit-user-select: none; user-select: none; }
   html, body { width: 100%; height: 100%; overflow: hidden; background: #0b1026; font-family: "Hiragino Maru Gothic ProN", "Yu Gothic", system-ui, sans-serif; }
   #game { position: fixed; inset: 0; }
   canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 
-  /* スタート画面 */
   #start {
     position: fixed; inset: 0; z-index: 10;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     background: radial-gradient(circle at 50% 30%, #2b3a8f 0%, #131a3d 70%, #0b1026 100%);
-    text-align: center; color: #fff; gap: 28px; padding: 24px;
+    text-align: center; color: #fff; gap: 26px; padding: 24px;
   }
-  #start h1 { font-size: clamp(32px, 8vw, 72px); text-shadow: 0 4px 0 #00000044; letter-spacing: 2px; }
+  #start h1 { font-size: clamp(30px, 8vw, 72px); text-shadow: 0 4px 0 #00000044; letter-spacing: 2px; }
   #start .emojis { font-size: clamp(40px, 12vw, 110px); line-height: 1; filter: drop-shadow(0 6px 10px #0008); }
-  #start p { font-size: clamp(16px, 3.5vw, 24px); opacity: .9; line-height: 1.7; }
+  #start p { font-size: clamp(15px, 3.4vw, 23px); opacity: .92; line-height: 1.7; }
   #startBtn {
     font: inherit; font-size: clamp(24px, 6vw, 44px); font-weight: bold; color: #5a2b00;
     background: linear-gradient(#ffe25a, #ffb52e); border: none; border-radius: 999px;
@@ -29,9 +28,9 @@
   #startBtn:active { transform: translateY(6px); box-shadow: 0 2px 0 #c97e00, 0 6px 12px #0007; }
   #loading { font-size: clamp(18px, 4vw, 26px); }
   .hidden { display: none !important; }
-  #err { color: #ffd0d0; font-size: 18px; max-width: 600px; line-height: 1.6; }
+  #err { color: #ffd0d0; font-size: 18px; max-width: 620px; line-height: 1.6; }
+  #musicNote { font-size: clamp(12px, 2.6vw, 15px); opacity: .65; max-width: 560px; line-height: 1.6; }
 
-  /* スコア表示 */
   #hud {
     position: fixed; top: 16px; left: 50%; transform: translateX(-50%); z-index: 5;
     display: flex; align-items: center; gap: 14px; color: #fff;
@@ -39,12 +38,10 @@
     font-size: clamp(22px, 5vw, 40px); font-weight: bold; text-shadow: 0 2px 4px #0008;
     pointer-events: none;
   }
-  #hud .star { filter: drop-shadow(0 2px 3px #0006); }
   #cheer {
     position: fixed; top: 22%; left: 50%; transform: translateX(-50%) scale(0.6); z-index: 6;
     font-size: clamp(40px, 11vw, 96px); font-weight: bold; color: #fff;
-    text-shadow: 0 4px 0 #ff6ec7, 0 0 24px #ffd86e; opacity: 0; pointer-events: none;
-    white-space: nowrap;
+    text-shadow: 0 4px 0 #ff6ec7, 0 0 24px #ffd86e; opacity: 0; pointer-events: none; white-space: nowrap;
   }
   #cheer.show { animation: pop 1s ease-out; }
   @keyframes pop {
@@ -60,29 +57,43 @@
   <canvas id="canvas"></canvas>
 </div>
 
-<div id="hud" class="hidden"><span class="star">⭐</span><span id="score">0</span></div>
+<div id="hud" class="hidden"><span>⭐</span><span id="score">0</span></div>
 <div id="cheer"></div>
 
 <div id="start">
-  <div class="emojis">🐶 🐰 🐱</div>
-  <h1>どうぶつタッチ♪</h1>
-  <p>おんがくにあわせて でてくる どうぶつさんを<br>てを のばして タッチしてね！</p>
+  <div class="emojis">🐶 💃 🐰 🕺 🐱</div>
+  <h1>どうぶつダンス♪</h1>
+  <p>おんがくに あわせて でてくる どうぶつさんを<br>てを のばして タッチ！ おどるように うごこう！</p>
   <button id="startBtn">▶ はじめる</button>
   <div id="loading" class="hidden">じゅんびちゅう… 📷</div>
   <div id="err" class="hidden"></div>
+  <div id="musicNote">🎵 自分の曲を使うには、リポジトリに <b>music.mp3</b> を置いてください（無いときは内蔵サウンドで遊べます）。</div>
 </div>
 
 <script type="module">
 import { PoseLandmarker, FilesetResolver }
   from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.12/vision_bundle.mjs";
 
-/* ============================ 基本設定 ============================ */
+/* ============================ 設定 ============================ */
+const MUSIC_SRC = "music.mp3";        // ここに曲を置けば自動で使われる
 const ANIMALS = ["🐶","🐱","🐰","🐻","🦊","🐼","🐸","🐵","🦁","🐯","🐮","🐷","🐔","🐧","🐨","🐹"];
-const CHEERS  = ["やったね！","すごい！","じょうず！","ナイス！","かわいい！","てんさい！"];
-const BPM = 96;                       // 音楽のテンポ
-const BEAT = 60 / BPM;                // 1拍の秒数
-const MAX_ANIMALS = 4;                // 同時に出る最大数
-const ANIMAL_LIFE = 4.2;              // 動物が消えるまでの秒数
+const CHEERS  = ["やったね！","すごい！","じょうず！","ナイス！","かわいい！","のりのり！","じょうずに おどれてる！"];
+const FALLBACK_BPM = 100;             // 内蔵サウンド時のテンポ
+const MAX_ANIMALS = 3;
+const ANIMAL_LIFE = 3.0;
+
+// 振り付け（体の中心からの相対位置。x,yは「肩はば」を1とした距離）
+// 左右・上下・クロス・両手 をぐるぐる回して、自然に踊る動きになるようにしてある
+const DANCE = [
+  [[-1.3, 0.4]],            // 左ひくめ
+  [[ 1.3, 0.4]],            // 右ひくめ
+  [[-1.2,-0.9]],            // 左たかめ
+  [[ 1.2,-0.9]],            // 右たかめ
+  [[ 0.0,-1.4]],            // ま上へ のびる
+  [[-1.9,-0.1]],            // 左へ おおきく
+  [[ 1.9,-0.1]],            // 右へ おおきく
+  [[-1.1,-0.9],[1.1,-0.9]], // りょうて バンザイ
+];
 
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
@@ -106,333 +117,321 @@ resize();
 
 /* ============================ 状態 ============================ */
 let video, poseLandmarker;
-let running = false;
-let score = 0;
-const animals = [];      // 出ている動物
-const particles = [];    // タッチした時のキラキラ
-const hands = [           // 左右の手（なめらかに追従）
+let running = false, score = 0;
+const animals = [], particles = [];
+const hands = [
   { x: W*0.35, y: H*0.6, active: false, ex: W*0.35, ey: H*0.6 },
   { x: W*0.65, y: H*0.6, active: false, ex: W*0.65, ey: H*0.6 },
 ];
 let lastVideoTime = -1;
 
-/* ============================ 音 (Web Audio) ============================ */
-let audio, master;
-function initAudio() {
+// 体の中心と大きさ（振り付けの基準）
+const body = { cx: W*0.5, cy: H*0.52, reach: Math.min(W,H)*0.22, seen: false };
+
+// リズム
+let beatPulse = 0;       // ビートでドクンと脈動
+let danceStep = 0;
+let ring = 0;            // 体の中心に出るリズムのリング
+
+/* ============================ 音 ============================ */
+let audio, master, analyser, freqData, musicEl = null;
+let musicMode = false;
+let energyAvg = 0, lastBeat = 0;
+
+function initAudioGraph() {
   audio = new (window.AudioContext || window.webkitAudioContext)();
-  master = audio.createGain();
-  master.gain.value = 0.5;
-  master.connect(audio.destination);
+  master = audio.createGain(); master.gain.value = 0.6; master.connect(audio.destination);
+  analyser = audio.createAnalyser(); analyser.fftSize = 1024; analyser.smoothingTimeConstant = 0.6;
+  analyser.connect(master);
+  freqData = new Uint8Array(analyser.frequencyBinCount);
 }
 
-// やわらかい音を1つ鳴らす
-function playTone(freq, time, dur, type = "sine", vol = 0.2) {
-  const o = audio.createOscillator();
-  const g = audio.createGain();
+// 自分の曲を読み込む（無ければ null）
+function loadMusic() {
+  return new Promise((resolve) => {
+    const a = new Audio();
+    a.loop = true; a.preload = "auto"; a.crossOrigin = "anonymous";
+    let done = false;
+    const finish = (v) => { if (!done) { done = true; resolve(v); } };
+    a.addEventListener("canplaythrough", () => finish(a), { once: true });
+    a.addEventListener("error", () => finish(null), { once: true });
+    setTimeout(() => finish(a.readyState >= 3 ? a : null), 5000);
+    a.src = MUSIC_SRC;
+  });
+}
+
+/* --- 内蔵サウンド（フォールバック） --- */
+function playTone(freq, time, dur, type = "triangle", vol = 0.16) {
+  const o = audio.createOscillator(), g = audio.createGain();
   o.type = type; o.frequency.value = freq;
   g.gain.setValueAtTime(0, time);
   g.gain.linearRampToValueAtTime(vol, time + 0.02);
   g.gain.exponentialRampToValueAtTime(0.0001, time + dur);
-  o.connect(g); g.connect(master);
+  o.connect(g); g.connect(analyser);
   o.start(time); o.stop(time + dur + 0.05);
 }
-// やさしいキック
 function playKick(time) {
-  const o = audio.createOscillator();
-  const g = audio.createGain();
-  o.frequency.setValueAtTime(140, time);
-  o.frequency.exponentialRampToValueAtTime(50, time + 0.12);
-  g.gain.setValueAtTime(0.35, time);
-  g.gain.exponentialRampToValueAtTime(0.0001, time + 0.18);
-  o.connect(g); g.connect(master);
-  o.start(time); o.stop(time + 0.2);
+  const o = audio.createOscillator(), g = audio.createGain();
+  o.frequency.setValueAtTime(150, time); o.frequency.exponentialRampToValueAtTime(50, time + 0.12);
+  g.gain.setValueAtTime(0.4, time); g.gain.exponentialRampToValueAtTime(0.0001, time + 0.18);
+  o.connect(g); g.connect(analyser); o.start(time); o.stop(time + 0.2);
 }
-// タッチ成功の「ポン♪」
+const MELODY = [523.25, 659.25, 587.33, 783.99, 880.0, 783.99, 659.25, 587.33];
+let synthBeat = 0;
+function synthOnBeat() {
+  const t = audio.currentTime;
+  playKick(t);
+  const f = MELODY[synthBeat % MELODY.length];
+  playTone(f, t, 0.42, "triangle", 0.13);
+  playTone(f / 2, t, 0.5, "sine", 0.06);
+  synthBeat++;
+}
+
+// タッチ成功の音
 function playHitSound() {
   if (!audio) return;
   const t = audio.currentTime;
-  const notes = [523.25, 659.25, 783.99, 1046.5]; // ドミソド
-  notes.forEach((f, i) => playTone(f, t + i * 0.05, 0.25, "triangle", 0.18));
+  [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => playTone(f, t + i * 0.05, 0.25, "triangle", 0.2));
 }
 
-// ペンタトニックの明るいメロディーをループ
-const MELODY = [523.25, 587.33, 659.25, 783.99, 880.0, 783.99, 659.25, 587.33]; // C D E G A G E D
-let nextNoteTime = 0, step = 0;
-function scheduler() {
-  if (!audio) return;
-  while (nextNoteTime < audio.currentTime + 0.15) {
-    playKick(nextNoteTime);                                   // 毎拍キック
-    if (step % 2 === 0) {                                     // 1拍おきにメロディー
-      const f = MELODY[(step / 2) % MELODY.length];
-      playTone(f, nextNoteTime, 0.4, "triangle", 0.12);
-      playTone(f / 2, nextNoteTime, 0.5, "sine", 0.06);        // やさしいベース
-    }
-    maybeSpawn(step);                                          // 拍に合わせて動物を出す
-    nextNoteTime += BEAT;
-    step++;
+/* ============================ ビート → 振り付け ============================ */
+function onBeat() {
+  beatPulse = 1; ring = 1;
+  const move = DANCE[danceStep % DANCE.length];
+  danceStep++;
+  for (const off of move) {
+    if (animals.length >= MAX_ANIMALS) break;
+    spawnAt(off[0], off[1]);
   }
 }
 
-/* ============================ 動物 ============================ */
-function maybeSpawn(stepIndex) {
-  if (stepIndex % 2 !== 0) return;          // 2拍ごとに出現チャンス
-  if (animals.length >= MAX_ANIMALS) return;
-  spawnAnimal();
-}
-function spawnAnimal() {
-  const r = Math.min(W, H) * 0.10;          // 大きめで触りやすく
-  const margin = r + 30;
-  // 既存と離れた場所を数回試す
-  let x = 0, y = 0, ok = false;
-  for (let tries = 0; tries < 8; tries++) {
-    x = margin + Math.random() * (W - margin * 2);
-    y = H * 0.18 + Math.random() * (H * 0.55);   // 子どもが届きやすい範囲
-    ok = animals.every(a => Math.hypot(a.x - x, a.y - y) > r * 2.4);
-    if (ok) break;
-  }
+function spawnAt(ox, oy) {
+  const r = Math.min(W, H) * 0.095;
+  let x = body.cx + ox * body.reach;
+  let y = body.cy + oy * body.reach;
+  const m = r + 16;
+  x = Math.max(m, Math.min(W - m, x));
+  y = Math.max(m + 40, Math.min(H - m, y));
   animals.push({
-    x, y, r,
-    emoji: ANIMALS[(Math.random() * ANIMALS.length) | 0],
-    born: performance.now() / 1000,
-    bobPhase: Math.random() * Math.PI * 2,
-    scale: 0,            // 出現アニメ
-    popped: false,
-    popT: 0,
+    x, y, r, emoji: ANIMALS[(Math.random()*ANIMALS.length)|0],
+    born: performance.now()/1000, bobPhase: Math.random()*Math.PI*2,
+    scale: 0, popped: false, popT: 0, faded: false,
   });
 }
 
 function spawnParticles(x, y) {
   const colors = ["#ffe25a","#ff6ec7","#6ec1ff","#8aff8a","#ffa64d","#c98aff"];
-  for (let i = 0; i < 16; i++) {
-    const a = Math.random() * Math.PI * 2;
-    const sp = 120 + Math.random() * 220;
-    particles.push({
-      x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 60,
-      life: 1, color: colors[(Math.random() * colors.length) | 0],
-      size: 6 + Math.random() * 10,
-    });
+  for (let i = 0; i < 18; i++) {
+    const a = Math.random()*Math.PI*2, sp = 130 + Math.random()*240;
+    particles.push({ x, y, vx: Math.cos(a)*sp, vy: Math.sin(a)*sp - 70, life: 1,
+      color: colors[(Math.random()*colors.length)|0], size: 6 + Math.random()*10 });
   }
 }
-
 function showCheer() {
-  cheerEl.textContent = CHEERS[(Math.random() * CHEERS.length) | 0];
-  cheerEl.classList.remove("show");
-  void cheerEl.offsetWidth;   // リフロー
-  cheerEl.classList.add("show");
+  cheerEl.textContent = CHEERS[(Math.random()*CHEERS.length)|0];
+  cheerEl.classList.remove("show"); void cheerEl.offsetWidth; cheerEl.classList.add("show");
 }
-
 function hitAnimal(a) {
-  a.popped = true;
-  a.popT = performance.now() / 1000;
-  score++;
-  scoreEl.textContent = score;
-  spawnParticles(a.x, a.y);
-  playHitSound();
-  if (score % 5 === 0) showCheer();          // 5こごとに大きくほめる
+  a.popped = true; a.popT = performance.now()/1000;
+  score++; scoreEl.textContent = score;
+  spawnParticles(a.x, a.y); playHitSound();
+  if (score % 5 === 0) showCheer();
 }
 
-/* ============================ カメラ & 姿勢推定 ============================ */
+/* ============================ カメラ & 姿勢 ============================ */
 async function setupCamera() {
   video = document.createElement("video");
-  video.setAttribute("playsinline", "");
-  video.muted = true;
+  video.setAttribute("playsinline", ""); video.muted = true;
   const stream = await navigator.mediaDevices.getUserMedia({
-    video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } },
-    audio: false,
-  });
-  video.srcObject = stream;
-  await video.play();
-  return video;
+    video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
+  video.srcObject = stream; await video.play(); return video;
 }
-
 async function setupPose() {
   const vision = await FilesetResolver.forVisionTasks(
-    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.12/wasm"
-  );
+    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.12/wasm");
   poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
-    baseOptions: {
-      modelAssetPath:
-        "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task",
-      delegate: "GPU",
-    },
-    runningMode: "VIDEO",
-    numPoses: 1,
-  });
+    baseOptions: { modelAssetPath:
+      "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task",
+      delegate: "GPU" },
+    runningMode: "VIDEO", numPoses: 1 });
 }
 
-// 手の位置を取得（人差し指、なければ手首）
-function updateHandsFromPose(result) {
+function mx(p) { return (1 - p.x) * W; }  // ミラー反映
+function my(p) { return p.y * H; }
+
+function updateFromPose(result) {
   hands[0].active = hands[1].active = false;
   if (!result.landmarks || !result.landmarks.length) return;
   const lm = result.landmarks[0];
-  const pick = (idx, fallback) => {
-    const p = lm[idx], f = lm[fallback];
-    const use = (p && (p.visibility ?? 1) > 0.3) ? p : f;
-    return use;
-  };
-  // 19=左手人差し指 / 15=左手首,  20=右手人差し指 / 16=右手首
-  const left = pick(19, 15);
-  const right = pick(20, 16);
-  // 表示はミラー（自撮り）なので x を反転
-  if (left && (left.visibility ?? 1) > 0.2) {
-    hands[0].ex = (1 - left.x) * W; hands[0].ey = left.y * H; hands[0].active = true;
-  }
-  if (right && (right.visibility ?? 1) > 0.2) {
-    hands[1].ex = (1 - right.x) * W; hands[1].ey = right.y * H; hands[1].active = true;
+  const vis = (p) => p ? (p.visibility ?? 1) : 0;
+
+  // 手（人差し指→手首の順で信頼できる方）
+  const L = vis(lm[19]) > 0.3 ? lm[19] : lm[15];
+  const R = vis(lm[20]) > 0.3 ? lm[20] : lm[16];
+  if (L && vis(L) > 0.2) { hands[0].ex = mx(L); hands[0].ey = my(L); hands[0].active = true; }
+  if (R && vis(R) > 0.2) { hands[1].ex = mx(R); hands[1].ey = my(R); hands[1].active = true; }
+
+  // 体の中心・大きさ（肩から）
+  const ls = lm[11], rs = lm[12];
+  if (ls && rs && vis(ls) > 0.4 && vis(rs) > 0.4) {
+    const sx1 = mx(ls), sy1 = my(ls), sx2 = mx(rs), sy2 = my(rs);
+    const tcx = (sx1 + sx2) / 2, tcy = (sy1 + sy2) / 2 - H * 0.04;
+    const sw = Math.hypot(sx1 - sx2, sy1 - sy2);
+    const treach = Math.max(Math.min(W, H) * 0.16, sw * 1.15);
+    body.cx += (tcx - body.cx) * 0.15;
+    body.cy += (tcy - body.cy) * 0.15;
+    body.reach += (treach - body.reach) * 0.1;
+    body.seen = true;
   }
 }
 
-/* ============================ 描画ループ ============================ */
+/* ============================ 描画 ============================ */
 function drawVideoMirrored() {
-  // カバー表示（はみ出しトリミング）＋左右反転
   const vw = video.videoWidth, vh = video.videoHeight;
-  if (!vw || !vh) { ctx.fillStyle = "#0b1026"; ctx.fillRect(0, 0, W, H); return; }
-  const scale = Math.max(W / vw, H / vh);
-  const dw = vw * scale, dh = vh * scale;
-  const dx = (W - dw) / 2, dy = (H - dh) / 2;
-  ctx.save();
-  ctx.translate(W, 0); ctx.scale(-1, 1);     // ミラー
-  ctx.drawImage(video, W - dx - dw, dy, dw, dh);
-  ctx.restore();
-  // 少し暗くして動物を見やすく
-  ctx.fillStyle = "rgba(10,14,40,0.28)";
-  ctx.fillRect(0, 0, W, H);
+  if (!vw || !vh) { ctx.fillStyle = "#0b1026"; ctx.fillRect(0,0,W,H); return; }
+  const scale = Math.max(W/vw, H/vh), dw = vw*scale, dh = vh*scale, dx = (W-dw)/2, dy = (H-dh)/2;
+  ctx.save(); ctx.translate(W,0); ctx.scale(-1,1);
+  ctx.drawImage(video, W-dx-dw, dy, dw, dh); ctx.restore();
+  // ビートで明るさが少し脈動する暗幕
+  ctx.fillStyle = `rgba(10,14,40,${0.34 - beatPulse*0.12})`;
+  ctx.fillRect(0,0,W,H);
 }
-
+function drawBeatRing() {
+  if (ring <= 0.01) return;
+  const R = body.reach * (0.6 + (1 - ring) * 1.6);
+  ctx.save();
+  ctx.globalAlpha = ring * 0.5;
+  ctx.lineWidth = 8 + ring * 10;
+  ctx.strokeStyle = "rgba(255,226,90,0.9)";
+  ctx.beginPath(); ctx.arc(body.cx, body.cy, R, 0, Math.PI*2); ctx.stroke();
+  ctx.restore();
+}
 function drawHand(h) {
   if (!h.active) return;
-  const t = performance.now() / 300;
-  const pulse = 1 + Math.sin(t) * 0.08;
-  const R = Math.min(W, H) * 0.045 * pulse;
-  // 光るリング
+  const t = performance.now()/300, pulse = 1 + Math.sin(t)*0.08;
+  const R = Math.min(W,H)*0.045*pulse;
   ctx.save();
-  const grad = ctx.createRadialGradient(h.x, h.y, R * 0.2, h.x, h.y, R * 1.6);
-  grad.addColorStop(0, "rgba(255,255,255,0.95)");
-  grad.addColorStop(0.5, "rgba(255,226,90,0.6)");
-  grad.addColorStop(1, "rgba(255,226,90,0)");
-  ctx.fillStyle = grad;
-  ctx.beginPath(); ctx.arc(h.x, h.y, R * 1.6, 0, Math.PI * 2); ctx.fill();
-  // 肉球
-  ctx.font = `${R * 2.0}px serif`;
-  ctx.textAlign = "center"; ctx.textBaseline = "middle";
-  ctx.fillText("🐾", h.x, h.y);
-  ctx.restore();
+  const g = ctx.createRadialGradient(h.x,h.y,R*0.2,h.x,h.y,R*1.6);
+  g.addColorStop(0,"rgba(255,255,255,0.95)"); g.addColorStop(0.5,"rgba(255,226,90,0.6)"); g.addColorStop(1,"rgba(255,226,90,0)");
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(h.x,h.y,R*1.6,0,Math.PI*2); ctx.fill();
+  ctx.font = `${R*2.0}px serif`; ctx.textAlign="center"; ctx.textBaseline="middle";
+  ctx.fillText("🐾", h.x, h.y); ctx.restore();
 }
 
-function update(dt) {
-  const now = performance.now() / 1000;
+function update(dt, now) {
+  beatPulse = Math.max(0, beatPulse - dt * 2.2);
+  ring = Math.max(0, ring - dt * 1.6);
 
-  // 手をなめらかに追従
+  if (!body.seen) { body.cx = W*0.5; body.cy = H*0.52; body.reach = Math.min(W,H)*0.22; }
+
   for (const h of hands) {
-    h.x += (h.ex - h.x) * Math.min(1, dt * 18);
-    h.y += (h.ey - h.y) * Math.min(1, dt * 18);
+    h.x += (h.ex - h.x) * Math.min(1, dt*18);
+    h.y += (h.ey - h.y) * Math.min(1, dt*18);
   }
 
-  // 動物の更新と当たり判定
-  for (let i = animals.length - 1; i >= 0; i--) {
-    const a = animals[i];
-    const age = now - a.born;
+  for (let i = animals.length-1; i >= 0; i--) {
+    const a = animals[i], age = now - a.born;
     if (!a.popped) {
-      a.scale += (1 - a.scale) * Math.min(1, dt * 10);     // ふわっと出現
-      // 当たり判定（手が近づいたらタッチ成功）
+      a.scale += (1 - a.scale) * Math.min(1, dt*10);
       for (const h of hands) {
         if (!h.active) continue;
-        if (Math.hypot(h.x - a.x, h.y - a.y) < a.r + Math.min(W, H) * 0.05) {
-          hitAnimal(a); break;
-        }
+        if (Math.hypot(h.x-a.x, h.y-a.y) < a.r + Math.min(W,H)*0.05) { hitAnimal(a); break; }
       }
-      // 時間切れでそっと消える
       if (!a.popped && age > ANIMAL_LIFE) { a.popped = true; a.popT = now; a.faded = true; }
-    } else {
-      const pe = now - a.popT;
-      if (pe > 0.4) { animals.splice(i, 1); }
-    }
+    } else if (now - a.popT > 0.4) { animals.splice(i,1); }
   }
 
-  // パーティクル更新
-  for (let i = particles.length - 1; i >= 0; i--) {
+  for (let i = particles.length-1; i >= 0; i--) {
     const p = particles[i];
-    p.life -= dt * 1.4;
-    p.vy += 600 * dt;
-    p.x += p.vx * dt; p.y += p.vy * dt;
-    if (p.life <= 0) particles.splice(i, 1);
+    p.life -= dt*1.4; p.vy += 600*dt; p.x += p.vx*dt; p.y += p.vy*dt;
+    if (p.life <= 0) particles.splice(i,1);
   }
 }
 
-function render() {
-  const now = performance.now() / 1000;
+function render(now) {
   drawVideoMirrored();
+  drawBeatRing();
 
-  // 動物
   for (const a of animals) {
     let s = a.scale, alpha = 1;
     if (a.popped) {
       const pe = now - a.popT;
-      if (a.faded) { s = a.scale * (1 - pe / 0.4); alpha = 1 - pe / 0.4; }   // 時間切れは縮む
-      else { s = a.scale * (1 + pe * 2.5); alpha = 1 - pe / 0.4; }            // タッチは弾ける
+      if (a.faded) { s = a.scale*(1-pe/0.4); alpha = 1-pe/0.4; }
+      else { s = a.scale*(1+pe*2.5); alpha = 1-pe/0.4; }
     }
-    const bob = Math.sin(now * 3 + a.bobPhase) * a.r * 0.08;
-    ctx.save();
-    ctx.globalAlpha = Math.max(0, alpha);
-    // 白いふわふわ背景
-    ctx.beginPath();
-    ctx.arc(a.x, a.y + bob, a.r * 1.15 * s, 0, Math.PI * 2);
+    const beatScale = 1 + beatPulse*0.12;
+    const bob = Math.sin(now*3 + a.bobPhase) * a.r * 0.08;
+    ctx.save(); ctx.globalAlpha = Math.max(0, alpha);
+    ctx.beginPath(); ctx.arc(a.x, a.y+bob, a.r*1.15*s*beatScale, 0, Math.PI*2);
     ctx.fillStyle = "rgba(255,255,255,0.85)";
-    ctx.shadowColor = "rgba(0,0,0,0.35)"; ctx.shadowBlur = 18; ctx.shadowOffsetY = 6;
-    ctx.fill();
+    ctx.shadowColor = "rgba(0,0,0,0.35)"; ctx.shadowBlur = 18; ctx.shadowOffsetY = 6; ctx.fill();
     ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
-    // 動物の絵文字
-    ctx.font = `${a.r * 1.8 * s}px serif`;
-    ctx.textAlign = "center"; ctx.textBaseline = "middle";
-    ctx.fillText(a.emoji, a.x, a.y + bob);
-    ctx.restore();
+    ctx.font = `${a.r*1.8*s*beatScale}px serif`; ctx.textAlign="center"; ctx.textBaseline="middle";
+    ctx.fillText(a.emoji, a.x, a.y+bob); ctx.restore();
   }
 
-  // パーティクル
   for (const p of particles) {
-    ctx.save();
-    ctx.globalAlpha = Math.max(0, p.life);
-    ctx.fillStyle = p.color;
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, p.size * (0.5 + p.life * 0.5), 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
+    ctx.save(); ctx.globalAlpha = Math.max(0, p.life); ctx.fillStyle = p.color;
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.size*(0.5+p.life*0.5), 0, Math.PI*2); ctx.fill(); ctx.restore();
   }
 
-  // 手
   for (const h of hands) drawHand(h);
 }
 
+/* ============================ ビート検出 ============================ */
+function detectMusicBeat(now) {
+  analyser.getByteFrequencyData(freqData);
+  let e = 0; for (let i = 1; i <= 6; i++) e += freqData[i]; e /= 6;   // 低音（キック）帯
+  energyAvg = energyAvg * 0.92 + e * 0.08;
+  if (e > energyAvg * 1.32 && e > 38 && now - lastBeat > 0.26) { lastBeat = now; onBeat(); }
+}
+
+/* ============================ ループ ============================ */
+const BEAT = 60 / FALLBACK_BPM;
 let lastT = performance.now();
 function loop() {
   if (!running) return;
-  const t = performance.now();
-  const dt = Math.min(0.05, (t - lastT) / 1000);
-  lastT = t;
+  const t = performance.now(), tow = t/1000;
+  const dt = Math.min(0.05, (t - lastT)/1000); lastT = t;
 
-  // 姿勢推定（新しいフレームのみ）
   if (video && video.currentTime !== lastVideoTime && video.readyState >= 2) {
     lastVideoTime = video.currentTime;
-    try {
-      const result = poseLandmarker.detectForVideo(video, t);
-      updateHandsFromPose(result);
-    } catch (e) { /* フレームによっては失敗するので無視 */ }
+    try { updateFromPose(poseLandmarker.detectForVideo(video, t)); } catch (e) {}
   }
 
-  scheduler();
-  update(dt);
-  render();
+  // ビート
+  if (musicMode) {
+    detectMusicBeat(audio.currentTime);
+  } else {
+    if (audio.currentTime - lastBeat >= BEAT) { lastBeat = audio.currentTime; synthOnBeat(); onBeat(); }
+  }
+
+  update(dt, tow);
+  render(tow);
   requestAnimationFrame(loop);
 }
 
 /* ============================ 開始 ============================ */
 async function start() {
-  startBtn.classList.add("hidden");
-  errEl.classList.add("hidden");
+  startBtn.classList.add("hidden"); errEl.classList.add("hidden");
   loadingEl.classList.remove("hidden");
   try {
-    initAudio();
+    initAudioGraph();
     if (audio.state === "suspended") await audio.resume();
+
+    loadingEl.textContent = "おんがくを よみこみちゅう… 🎵";
+    musicEl = await loadMusic();
+    if (musicEl) {
+      const srcNode = audio.createMediaElementSource(musicEl);
+      srcNode.connect(analyser);
+      musicEl.currentTime = 0;
+      await musicEl.play();
+      musicMode = true;
+    } else {
+      musicMode = false;   // 内蔵サウンド
+    }
+
+    loadingEl.textContent = "カメラを じゅんびちゅう… 📷";
     await setupCamera();
     loadingEl.textContent = "どうぶつを よびだしちゅう… 🐾";
     await setupPose();
@@ -440,7 +439,7 @@ async function start() {
     startScreen.classList.add("hidden");
     hud.classList.remove("hidden");
     running = true;
-    nextNoteTime = audio.currentTime + 0.1;
+    lastBeat = audio.currentTime;
     lastT = performance.now();
     requestAnimationFrame(loop);
   } catch (e) {
@@ -449,14 +448,12 @@ async function start() {
     startBtn.classList.remove("hidden");
     errEl.classList.remove("hidden");
     let msg = "うまくはじめられませんでした。";
-    if (e && (e.name === "NotAllowedError" || e.name === "SecurityError")) {
+    if (e && (e.name === "NotAllowedError" || e.name === "SecurityError"))
       msg = "カメラのきょかが ひつようです。ブラウザのカメラを「きょか」にして、もういちど「はじめる」をおしてね。";
-    } else if (e && e.name === "NotFoundError") {
+    else if (e && e.name === "NotFoundError")
       msg = "カメラが みつかりませんでした。カメラを つないで ためしてね。";
-    } else {
-      msg = "エラー: " + (e && e.message ? e.message : e) +
-            "（カメラのきょか／インターネットせつぞくを かくにんしてね）";
-    }
+    else
+      msg = "エラー: " + (e && e.message ? e.message : e) + "（カメラのきょか／インターネットせつぞくを かくにんしてね）";
     errEl.textContent = msg;
   }
 }
